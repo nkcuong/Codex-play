@@ -1,0 +1,43 @@
+@startuml
+class Tetromino {
+  +kind: str
+  +rotation: int
+  +x: int
+  +y: int
+  +cells(): List[(int,int)]
+  +rotated(direction): Tetromino
+  +moved(dx,dy): Tetromino
+}
+
+class Board {
+  -grid: List[List[Optional[str]]]
+  -lines_cleared: int
+  +valid_position(piece: Tetromino): bool
+  +lock_piece(piece: Tetromino): int
+  +reset()
+}
+
+class PieceQueue {
+  -_bag: List[str]
+  +next_piece(): Tetromino
+}
+
+class TetrisGame {
+  -surface: Surface
+  -board: Board
+  -queue: PieceQueue
+  -current_piece: Tetromino
+  -next_piece: Tetromino
+  +run()
+  +handle_events()
+  +update(dt)
+  +draw()
+  +reset()
+}
+
+PieceQueue --> Tetromino : creates
+Board --> Tetromino : validates/locks
+TetrisGame --> Board
+TetrisGame --> PieceQueue
+TetrisGame --> Tetromino
+@enduml

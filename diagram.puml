@@ -1,0 +1,48 @@
+@startuml
+class Piece {
+  +color: str
+  +kind: str
+}
+class Move {
+  +start: (int,int)
+  +end: (int,int)
+  +promotion: Optional[str]
+  +is_castle: bool
+  +is_en_passant: bool
+}
+class GameState {
+  -board: List[List[Optional[Piece]]]
+  -turn: str
+  -castling_rights: Dict[str,bool]
+  -en_passant_target: Optional[(int,int)]
+  -halfmove_clock: int
+  -fullmove_number: int
+  -move_history: List[Move]
+  -status_message: Optional[str]
+  +reset()
+  +clone()
+  +apply_move(move, update_status, record_history)
+  +legal_moves(color)
+  +legal_moves_from_square(x,y)
+  +pseudo_moves(x,y)
+  +is_in_check(color)
+  +is_square_attacked(x,y,attacker)
+}
+class ChessGame {
+  -state: GameState
+  -selected_square: Optional[(int,int)]
+  -legal_targets: List[Move]
+  -mode: Optional[str]
+  -human_color: str
+  -piece_images: Dict[(str,str), Surface]
+  +run()
+  +handle_events()
+  +handle_click(position)
+  +update(dt)
+  +make_ai_move()
+  +draw()
+}
+Piece <-- GameState : board cells
+Move <-- GameState : history & moves
+GameState <-- ChessGame : composes
+@enduml
