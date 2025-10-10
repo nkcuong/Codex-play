@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
 import copy
+import random
 import pygame
 
 # Board and UI constants
@@ -24,6 +25,8 @@ BACKGROUND_COLOR = (30, 30, 30)
 PIECE_COLORS = {"white": (240, 240, 240), "black": (48, 48, 48)}
 PIECE_STROKE_COLORS = {"white": (120, 120, 120), "black": (220, 220, 220)}
 PIECE_ACCENT_COLORS = {"white": (255, 255, 255), "black": (120, 120, 120)}
+
+PIECE_VALUES = {"K": 1000, "Q": 9, "R": 5, "B": 3, "N": 3, "P": 1}
 
 
 @dataclass(frozen=True)
@@ -509,16 +512,23 @@ class ChessGame:
         self.selected_square: Optional[Tuple[int, int]] = None
         self.legal_targets: List[Move] = []
         self.running = True
+        self.mode: Optional[str] = None  # "human_vs_human" or "human_vs_ai"
+        self.human_color: str = "white"
+        self.ai_move_timer = 0
+        self.ai_move_delay = 450  # ms between AI turns
 
     def reset(self) -> None:
         self.state.reset()
         self.selected_square = None
         self.legal_targets = []
+        self.ai_move_timer = 0
 
     def run(self) -> None:
         while self.running:
-            self.clock.tick(FPS)
+            dt = self.clock.tick(FPS)
             self.handle_events()
+            if self.mode:
+                self.update(dt)
             self.draw()
             pygame.display.flip()
 
@@ -529,10 +539,32 @@ class ChessGame:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.running = False
-                if event.key == pygame.K_r:
+                if event.key == pygame.K_r and self.mode:
                     self.reset()
+                if self.mode is None:
+                    if event.key == pygame.K_1:
+                        self.set_mode("human_vs_human")
+                    if event.key == pygame.K_2:
+                        self.set_mode("human_vs_ai")
             elif event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                self.handle_click(event.pos)
+                if self.mode:
+                    self.handle_click(event.pos)
+
+    def set_mode(self, mode: str) -> None:
+        self.mode = mode
+        self.human_color = "white"
+        self.reset()
+
+    def update(self, dt: int) -> None:
+        if self.mode == "human_vs_ai" and self.state.turn != self.human_color:
+            if self.state.status_message:
+                return
+            self.ai_move_timer += dt
+            if self.ai_move_timer >= self.ai_move_delay:
+                self.make_ai_move()
+                self.ai_move_timer = 0
+        else:
+            self.ai_move_timer = 0
 
     def handle_click(self, position: Tuple[int, int]) -> None:
         x, y = position
@@ -541,6 +573,10 @@ class ChessGame:
         board_x = x // SQUARE_SIZE
         board_y = y // SQUARE_SIZE
         if not self.state.inside(board_x, board_y):
+            return
+        if self.state.status_message:
+            return
+        if self.mode == "human_vs_ai" and self.state.turn != self.human_color:
             return
 
         if self.selected_square:
@@ -569,11 +605,67 @@ class ChessGame:
             self.selected_square = (board_x, board_y)
             self.legal_targets = self.state.legal_moves_from_square(board_x, board_y)
 
+    def make_ai_move(self) -> None:
+        moves = self.state.legal_moves(self.state.turn)
+        if not moves:
+            self.state._update_game_status()
+            return
+        move = self._choose_ai_move(moves)
+        piece = self.state.piece_at(*move.start)
+        if (
+            piece
+            and piece.kind == "P"
+            and (move.end[1] == 0 or move.end[1] == BOARD_SIZE - 1)
+        ):
+            move = Move(
+                move.start,
+                move.end,
+                promotion="Q",
+                is_castle=move.is_castle,
+                is_en_passant=move.is_en_passant,
+            )
+        self.state.apply_move(move)
+        self.selected_square = None
+        self.legal_targets = []
+
+    def _choose_ai_move(self, moves: List[Move]) -> Move:
+        capture_moves: List[Move] = []
+        best_capture_value = -1
+        for move in moves:
+            target = self.state.piece_at(*move.end)
+            if target:
+                value = PIECE_VALUES[target.kind]
+                if value > best_capture_value:
+                    capture_moves = [move]
+                    best_capture_value = value
+                elif value == best_capture_value:
+                    capture_moves.append(move)
+        if capture_moves:
+            return random.choice(capture_moves)
+
+        promotion_moves = [
+            move
+            for move in moves
+            if self.state.piece_at(*move.start)
+            and self.state.piece_at(*move.start).kind == "P"  # type: ignore[union-attr]
+            and (move.end[1] == 0 or move.end[1] == BOARD_SIZE - 1)
+        ]
+        if promotion_moves:
+            return random.choice(promotion_moves)
+
+        castle_moves = [move for move in moves if move.is_castle]
+        if castle_moves:
+            return random.choice(castle_moves)
+
+        return random.choice(moves)
+
     def draw(self) -> None:
         self.screen.fill(BACKGROUND_COLOR)
         self.draw_board()
         self.draw_pieces()
         self.draw_status()
+        if self.mode is None:
+            self.draw_mode_menu()
 
     def draw_board(self) -> None:
         for y in range(BOARD_SIZE):
@@ -631,6 +723,27 @@ class ChessGame:
         if self.state.status_message:
             message = self.small_font.render(self.state.status_message, True, (255, 215, 0))
             self.screen.blit(message, (200, WINDOW_SIZE + 30))
+
+    def draw_mode_menu(self) -> None:
+        overlay = pygame.Surface((WINDOW_SIZE, WINDOW_SIZE + 80), pygame.SRCALPHA)
+        overlay.fill((0, 0, 0, 170))
+        self.screen.blit(overlay, (0, 0))
+
+        title = self.font.render("Chọn chế độ chơi", True, (255, 255, 255))
+        title_rect = title.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2 - 60))
+        self.screen.blit(title, title_rect)
+
+        option1 = self.small_font.render("1 - Hai người chơi trên cùng máy", True, (230, 230, 230))
+        option1_rect = option1.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2))
+        self.screen.blit(option1, option1_rect)
+
+        option2 = self.small_font.render("2 - Người vs Máy (bạn đi quân trắng)", True, (230, 230, 230))
+        option2_rect = option2.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2 + 40))
+        self.screen.blit(option2, option2_rect)
+
+        hint = self.small_font.render("Nhấn phím tương ứng để bắt đầu", True, (210, 210, 210))
+        hint_rect = hint.get_rect(center=(WINDOW_SIZE // 2, WINDOW_SIZE // 2 + 90))
+        self.screen.blit(hint, hint_rect)
 
     def _generate_piece_images(self) -> Dict[Tuple[str, str], pygame.Surface]:
         images: Dict[Tuple[str, str], pygame.Surface] = {}
