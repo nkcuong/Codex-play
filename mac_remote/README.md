@@ -19,8 +19,10 @@ Mac Remote listening on http://192.168.1.23:8765/
 Access token: Xk3...
 ```
 
-Open that URL on your phone, paste the token, tap buttons. Add the page to your
-home screen for an app-like feel.
+Open that URL on your phone, paste the token, tap buttons. The server also prints
+a fixed `http://<name>.local:8765/` address that keeps working when the IP changes.
+Add the page to your home screen (Safari → Share → Add to Home Screen) for an
+app-like feel.
 
 ## One-time macOS setup
 

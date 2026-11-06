@@ -383,6 +383,10 @@ def main():
     actions = Actions(runner, cfg)
     httpd = ThreadingHTTPServer((args.bind, port), make_handler(cfg, actions, runner))
     print(f"Mac Remote listening on http://{lan_ip()}:{port}/")
+    local = subprocess.run(["scutil", "--get", "LocalHostName"], capture_output=True, text=True).stdout.strip() \
+        if sys.platform == "darwin" else ""
+    if local:
+        print(f"Or use the fixed name:      http://{local}.local:{port}/")
     print(f"Access token: {cfg['token']}")
     if args.dry_run:
         print("DRY RUN: commands are logged, not executed.")
