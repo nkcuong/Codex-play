@@ -1,0 +1,4 @@
+# Lets Mac Remote reboot and install updates without a password prompt.
+# Install with:  sudo visudo -f /etc/sudoers.d/mac_remote   (paste these lines, replace YOURUSER)
+YOURUSER ALL=(root) NOPASSWD: /sbin/shutdown -r now
+YOURUSER ALL=(root) NOPASSWD: /usr/sbin/softwareupdate -i -a --restart
