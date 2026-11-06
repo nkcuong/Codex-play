@@ -4,7 +4,7 @@
 Runs a small HTTP server on the Mac. Open http://<mac-ip>:8765 from any device
 on the same network, enter the token shown at startup, and press buttons.
 
-Actions: lock, screensaver, unlock, reboot, check/install OS updates, open Safari.
+Actions: lock, screensaver, unlock, reboot, check/install OS updates, open Safari, open stocks.
 
 Only the Python standard library is used, so there is nothing to install.
 """
@@ -29,6 +29,7 @@ CONFIG_DIR = Path.home() / ".mac_remote"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 KEYCHAIN_SERVICE = "mac_remote_unlock"
 DEFAULT_PORT = 8765
+STOCKS_URL = "https://www.investing.com/portfolio/?portfolioID=MDZjMm8%2FMms0am1mMmA5PQ%3D%3D"
 
 
 # ---------------------------------------------------------------------------
@@ -51,6 +52,9 @@ def load_config():
         changed = True
     if "safari_url" not in cfg:
         cfg["safari_url"] = ""
+        changed = True
+    if "stocks_url" not in cfg:
+        cfg["stocks_url"] = STOCKS_URL
         changed = True
     if changed:
         with open(CONFIG_FILE, "w") as f:
@@ -198,6 +202,10 @@ class Actions:
         cmd = ["open", "-a", "Safari"] + ([url] if url else [])
         return self.r.run("safari", cmd)
 
+    def stocks(self):
+        url = self.cfg.get("stocks_url") or STOCKS_URL
+        return self.r.run("stocks", ["open", "-a", "Safari", url])
+
 
 # ---------------------------------------------------------------------------
 # Web UI
@@ -238,8 +246,9 @@ INDEX_HTML = r"""<!doctype html>
   <button onclick="act('unlock')"><span class="ic">🔓</span>Unlock</button>
   <button onclick="act('screensaver')"><span class="ic">🌌</span>Screen saver</button>
   <button onclick="act('safari')"><span class="ic">🧭</span>Open Safari</button>
+  <button onclick="act('stocks')"><span class="ic">📈</span>Open Stocks</button>
   <button onclick="act('check_updates')"><span class="ic">🔍</span>Check updates</button>
-  <button class="danger" onclick="confirmAct('install_updates','Install all macOS updates and restart if needed?')"><span class="ic">⬇️</span>Update macOS</button>
+  <button class="danger wide" onclick="confirmAct('install_updates','Install all macOS updates and restart if needed?')"><span class="ic">⬇️</span>Update macOS</button>
   <button class="danger wide" onclick="confirmAct('reboot','Reboot the Mac now?')"><span class="ic">🔄</span>Reboot</button>
 </div>
 
@@ -337,6 +346,7 @@ def make_handler(cfg, actions, runner):
                 "check_updates": actions.check_updates,
                 "install_updates": actions.install_updates,
                 "safari": lambda: actions.safari(str(body.get("url", ""))[:2000]),
+                "stocks": actions.stocks,
             }
             fn = routes.get(name)
             if not fn:

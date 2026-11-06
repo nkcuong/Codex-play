@@ -1,7 +1,7 @@
 # Mac Remote
 
 Control your Mac from your phone (or any browser on the same Wi‑Fi):
-**Lock screen · Unlock · Screen saver · Open Safari · Check updates · Update macOS · Reboot**
+**Lock screen · Unlock · Screen saver · Open Safari · Open Stocks · Check updates · Update macOS · Reboot**
 
 Pure Python 3 standard library. Nothing to install.
 
@@ -32,6 +32,7 @@ app-like feel.
 | Unlock | System Settings → Lock Screen → *Require password after screen saver begins* must be set, and the Mac must not be fully asleep with "Wake for network access" off. Enable System Settings → Battery/Energy → **Wake for network access**. |
 | Reboot, Update macOS | Allow these two commands without a password: `sudo visudo -f /etc/sudoers.d/mac_remote` and paste `sudoers.example` with your username. Without this, Reboot falls back to an on-screen "Restart" request and Update will fail. |
 | Open Safari | Works out of the box. Put a default URL in `~/.mac_remote/config.json` (`"safari_url"`) or type one in the page. |
+| Open Stocks | Opens your investing.com portfolio in Safari. Change the link via `"stocks_url"` in `~/.mac_remote/config.json`. |
 
 ## Run at login
 
@@ -51,7 +52,7 @@ Logs go to `~/.mac_remote/server.log`.
 ## API
 
 `POST /api/<action>` with header `X-Token: <token>`.
-Actions: `lock`, `unlock`, `screensaver`, `safari` (JSON body `{"url": "..."}` optional), `check_updates`, `install_updates`, `reboot`.
+Actions: `lock`, `unlock`, `screensaver`, `safari` (JSON body `{"url": "..."}` optional), `stocks`, `check_updates`, `install_updates`, `reboot`.
 `GET /api/status` returns the host name and the last 50 log entries.
 
 Example:
